@@ -1,4 +1,4 @@
-﻿ using Unity.FPS.Game;
+﻿using Unity.FPS.Game;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -34,7 +34,10 @@ namespace Unity.FPS.Gameplay
         private InputAction m_CrouchAction;
         private InputAction m_ReloadAction;
         private InputAction m_NextWeaponAction;
-        private InputAction m_InteractAction;
+        private InputAction m_DashAction;
+        private InputAction m_AltFireAction;
+        bool m_OwnsDashAction;
+        bool m_OwnsAltFireAction;
 
         void Start()
         {
@@ -56,7 +59,10 @@ namespace Unity.FPS.Gameplay
             m_CrouchAction = InputSystem.actions.FindAction("Player/Crouch");
             m_ReloadAction = InputSystem.actions.FindAction("Player/Reload");
             m_NextWeaponAction = InputSystem.actions.FindAction("Player/NextWeapon");
-            m_InteractAction = InputSystem.actions.FindAction("Player/Interact");
+            m_DashAction = FindOrCreateButtonAction("Player/Dash", "<Keyboard>/leftAlt", "<Gamepad>/rightShoulder",
+                out m_OwnsDashAction);
+            m_AltFireAction = FindOrCreateButtonAction("Player/AltFire", "<Mouse>/middleButton",
+                "<Gamepad>/leftShoulder", out m_OwnsAltFireAction);
             
             m_MoveAction.Enable();
             m_LookAction.Enable();
@@ -67,7 +73,14 @@ namespace Unity.FPS.Gameplay
             m_CrouchAction.Enable();
             m_ReloadAction.Enable();
             m_NextWeaponAction.Enable();
-            m_InteractAction.Enable();
+            m_DashAction.Enable();
+            m_AltFireAction.Enable();
+        }
+
+        void OnDestroy()
+        {
+            ReleaseOwnedAction(m_DashAction, m_OwnsDashAction);
+            ReleaseOwnedAction(m_AltFireAction, m_OwnsAltFireAction);
         }
 
         void LateUpdate()
@@ -196,6 +209,16 @@ namespace Unity.FPS.Gameplay
             return false;
         }
 
+        public bool GetDashInputDown()
+        {
+            if (CanProcessInput())
+            {
+                return m_DashAction.WasPressedThisFrame();
+            }
+
+            return false;
+        }
+
         public bool GetCrouchInputDown()
         {
             if (CanProcessInput())
@@ -226,11 +249,11 @@ namespace Unity.FPS.Gameplay
             return false;
         }
 
-        public bool GetInteractInputDown()
+        public bool GetAltFireInputDown()
         {
-            if (CanProcessInput() && m_InteractAction != null)
+            if (CanProcessInput())
             {
-                return m_InteractAction.WasPressedThisFrame();
+                return m_AltFireAction.WasPressedThisFrame();
             }
 
             return false;
@@ -277,6 +300,43 @@ namespace Unity.FPS.Gameplay
             }
 
             return 0;
+        }
+
+        InputAction FindOrCreateButtonAction(string actionPath, string primaryBinding, string secondaryBinding,
+            out bool ownsAction)
+        {
+            InputAction action = InputSystem.actions.FindAction(actionPath);
+            if (action != null)
+            {
+                ownsAction = false;
+                return action;
+            }
+
+            ownsAction = true;
+
+            int lastSeparatorIndex = actionPath.LastIndexOf('/');
+            string actionName = lastSeparatorIndex >= 0
+                ? actionPath.Substring(lastSeparatorIndex + 1)
+                : actionPath;
+
+            action = new InputAction(actionName, InputActionType.Button);
+            action.AddBinding(primaryBinding);
+
+            if (!string.IsNullOrEmpty(secondaryBinding))
+            {
+                action.AddBinding(secondaryBinding);
+            }
+
+            return action;
+        }
+
+        void ReleaseOwnedAction(InputAction action, bool ownsAction)
+        {
+            if (ownsAction && action != null)
+            {
+                action.Disable();
+                action.Dispose();
+            }
         }
     }
 }

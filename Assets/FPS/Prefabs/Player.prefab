@@ -439,6 +439,9 @@ MonoBehaviour:
   MaxSpeedInAir: 10
   AccelerationSpeedInAir: 25
   SprintSpeedModifier: 1.5
+  DashSpeedMultiplier: 2.5
+  DashDuration: 0.25
+  DashCooldown: 2
   KillHeight: -50
   RotationSpeed: 200
   AimingRotationMultiplier: 0.4

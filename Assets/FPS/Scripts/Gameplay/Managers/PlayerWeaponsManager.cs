@@ -144,6 +144,11 @@ namespace Unity.FPS.Gameplay
                     m_InputHandler.GetFireInputHeld(),
                     m_InputHandler.GetFireInputReleased());
 
+                if (!hasFired)
+                {
+                    hasFired = activeWeapon.HandleAltShootInputs(m_InputHandler.GetAltFireInputDown());
+                }
+
                 // Handle accumulating recoil
                 if (hasFired)
                 {
