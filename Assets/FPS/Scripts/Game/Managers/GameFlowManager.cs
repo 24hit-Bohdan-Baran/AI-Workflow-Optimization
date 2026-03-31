@@ -35,13 +35,24 @@ namespace Unity.FPS.Game
 
         void Awake()
         {
+            SessionFeedbackData.BeginSession();
+
             EventManager.AddListener<AllObjectivesCompletedEvent>(OnAllObjectivesCompleted);
             EventManager.AddListener<PlayerDeathEvent>(OnPlayerDeath);
+            EventManager.AddListener<EnemyKillEvent>(OnEnemyKilled);
+
+            Objective.OnObjectiveCreated += OnObjectiveCreated;
+            Objective.OnObjectiveCompleted += OnObjectiveCompleted;
         }
 
         void Start()
         {
             AudioUtility.SetMasterVolume(1);
+
+            foreach (Objective objective in FindObjectsByType<Objective>(FindObjectsSortMode.None))
+            {
+                SessionFeedbackData.RegisterObjective(objective);
+            }
         }
 
         void Update()
@@ -64,9 +75,14 @@ namespace Unity.FPS.Game
 
         void OnAllObjectivesCompleted(AllObjectivesCompletedEvent evt) => EndGame(true);
         void OnPlayerDeath(PlayerDeathEvent evt) => EndGame(false);
+        void OnEnemyKilled(EnemyKillEvent evt) => SessionFeedbackData.RegisterEnemyKill();
+        void OnObjectiveCreated(Objective objective) => SessionFeedbackData.RegisterObjective(objective);
+        void OnObjectiveCompleted(Objective objective) => SessionFeedbackData.RegisterObjectiveCompletion(objective);
 
         void EndGame(bool win)
         {
+            SessionFeedbackData.CompleteSession(win);
+
             // unlocks the cursor before leaving the scene, to be able to click buttons
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -110,6 +126,10 @@ namespace Unity.FPS.Game
         {
             EventManager.RemoveListener<AllObjectivesCompletedEvent>(OnAllObjectivesCompleted);
             EventManager.RemoveListener<PlayerDeathEvent>(OnPlayerDeath);
+            EventManager.RemoveListener<EnemyKillEvent>(OnEnemyKilled);
+
+            Objective.OnObjectiveCreated -= OnObjectiveCreated;
+            Objective.OnObjectiveCompleted -= OnObjectiveCompleted;
         }
     }
 }
