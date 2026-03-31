@@ -1,4 +1,4 @@
-﻿using System;
+﻿е using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -106,6 +106,22 @@ namespace Unity.FPS.Game
 
         [Tooltip("Additional ammo used when charge reaches its maximum")]
         public float AmmoUsageRateWhileCharging = 1f;
+
+        [Header("Alternate Fire")]
+        [Tooltip("Whether this weapon can use alternate fire")]
+        public bool HasAlternateFire = false;
+
+        [Tooltip("Minimum delay between alternate-fire shots")]
+        public float AltFireDelayBetweenShots = 1f;
+
+        [Tooltip("Ammo consumed by alternate fire")]
+        public float AltFireAmmoCost = 3f;
+
+        [Tooltip("Damage multiplier applied to alternate-fire projectiles")]
+        public float AltFireDamageMultiplier = 2.5f;
+
+        [Tooltip("Projectile spread used by alternate fire")]
+        public float AltFireSpreadAngle = 0f;
 
         [Header("Audio & Visual")] 
         [Tooltip("Optional weapon animator for OnShoot animations")]
@@ -390,6 +406,16 @@ namespace Unity.FPS.Game
             }
         }
 
+        public bool HandleAltShootInputs(bool inputDown)
+        {
+            if (!HasAlternateFire || !inputDown || IsCharging)
+            {
+                return false;
+            }
+
+            return TryAltShoot();
+        }
+
         bool TryShoot()
         {
             if (m_CurrentAmmo >= 1f
@@ -397,6 +423,29 @@ namespace Unity.FPS.Game
             {
                 HandleShoot();
                 m_CurrentAmmo -= 1f;
+
+                return true;
+            }
+
+            return false;
+        }
+
+        bool TryAltShoot()
+        {
+            float ammoCost = Mathf.Max(1f, AltFireAmmoCost);
+            float shotDelay = Mathf.Max(DelayBetweenShots, AltFireDelayBetweenShots);
+
+            if (m_CurrentAmmo >= ammoCost
+                && m_LastTimeShot + shotDelay < Time.time)
+            {
+                HandleShoot(1, AltFireDamageMultiplier, AltFireSpreadAngle);
+                m_CurrentAmmo = Mathf.Clamp(m_CurrentAmmo - ammoCost, 0f, MaxAmmo);
+
+                if (HasPhysicalBullets)
+                {
+                    m_CarriedPhysicalBullets -= Mathf.RoundToInt(Mathf.Max(0f, ammoCost - 1f));
+                    m_CarriedPhysicalBullets = Mathf.Clamp(m_CarriedPhysicalBullets, 0, MaxAmmo);
+                }
 
                 return true;
             }
@@ -437,19 +486,23 @@ namespace Unity.FPS.Game
             return false;
         }
 
-        void HandleShoot()
+        void HandleShoot(int bulletsPerShotOverride = -1, float damageMultiplier = 1f, float spreadAngleOverride = -1f)
         {
-            int bulletsPerShotFinal = ShootType == WeaponShootType.Charge
-                ? Mathf.CeilToInt(CurrentCharge * BulletsPerShot)
-                : BulletsPerShot;
+            int bulletsPerShotFinal = bulletsPerShotOverride > 0
+                ? bulletsPerShotOverride
+                : ShootType == WeaponShootType.Charge
+                    ? Mathf.CeilToInt(CurrentCharge * BulletsPerShot)
+                    : BulletsPerShot;
+
+            float spreadAngle = spreadAngleOverride >= 0f ? spreadAngleOverride : BulletSpreadAngle;
 
             // spawn all bullets with random direction
             for (int i = 0; i < bulletsPerShotFinal; i++)
             {
-                Vector3 shotDirection = GetShotDirectionWithinSpread(WeaponMuzzle);
+                Vector3 shotDirection = GetShotDirectionWithinSpread(WeaponMuzzle, spreadAngle);
                 ProjectileBase newProjectile = Instantiate(ProjectilePrefab, WeaponMuzzle.position,
                     Quaternion.LookRotation(shotDirection));
-                newProjectile.Shoot(this);
+                newProjectile.Shoot(this, damageMultiplier);
             }
 
             // muzzle flash
@@ -490,9 +543,9 @@ namespace Unity.FPS.Game
             OnShootProcessed?.Invoke();
         }
 
-        public Vector3 GetShotDirectionWithinSpread(Transform shootTransform)
+        public Vector3 GetShotDirectionWithinSpread(Transform shootTransform, float spreadAngle)
         {
-            float spreadAngleRatio = BulletSpreadAngle / 180f;
+            float spreadAngleRatio = spreadAngle / 180f;
             Vector3 spreadWorldDirection = Vector3.Slerp(shootTransform.forward, UnityEngine.Random.insideUnitSphere,
                 spreadAngleRatio);
 

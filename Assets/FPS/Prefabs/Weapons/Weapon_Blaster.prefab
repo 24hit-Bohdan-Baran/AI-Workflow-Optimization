@@ -209,6 +209,11 @@ MonoBehaviour:
   MaxChargeDuration: 2
   AmmoUsedOnStartCharge: 1
   AmmoUsageRateWhileCharging: 2
+  HasAlternateFire: 1
+  AltFireDelayBetweenShots: 0.8
+  AltFireAmmoCost: 3
+  AltFireDamageMultiplier: 2.5
+  AltFireSpreadAngle: 0
   WeaponAnimator: {fileID: 0}
   MuzzleFlashPrefab: {fileID: 748781637555137343, guid: 9f671b22f25370048a18fb1f821294ec,
     type: 3}
